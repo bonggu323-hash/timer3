@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>생산성 대시보드 - 뽀모도로 & 스톱워치</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            900: '#4c1d95',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- 구글 폰트 (Pretendard 스타일의 맑은 고딕 계열 적용) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+        }
+        /* 시각적 링의 애니메이션 전환 효과 */
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full transition-colors duration-300">
+
+    <div class="max-w-7xl mx-auto px-4 py-6 md:py-10">
+        <!-- 상단 헤더 및 테마/설정 컨트롤러 -->
+        <header class="flex flex-col sm:flex-row justify-between items-center mb-8 pb-6 border-b border-slate-200 dark:border-slate-800 gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-brand-600 dark:text-brand-500">생산성 대시보드</h1>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">집중과 휴식의 균형을 통한 효율적인 시간 관리 시스템</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <!-- 테스트 알림음 버튼 -->
+                <button onclick="playAlertSound()" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                    알림음 테스트
+                </button>
+                <!-- 다크모드 토글 -->
+                <button id="themeToggleBtn" onclick="toggleTheme()" class="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                    <span class="sr-only">테마 모드 변경</span>
+                    <!-- 해 아이콘 (다크모드일 때 노출) -->
+                    <svg id="sunIcon" class="w-5 h-5 text-amber-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M14.25 12a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+                    <!-- 달 아이콘 (라이트모드일 때 노출) -->
+                    <svg id="moonIcon" class="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- 메인 그리드 레이아웃 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <!-- 왼쪽 섹션: 메인 제어 장치 (타이머 & 스톱워치 탭) - 7컬럼 -->
+            <main class="lg:col-span-7 space-y-6">
+                
+                <!-- 탭 메뉴 컨트롤러 -->
+                <div class="bg-white dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 flex shadow-sm">
+                    <button id="tabBtnPomodoro" onclick="switchTab('pomodoro')" class="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 text-center bg-brand-500 text-white shadow-sm">
+                        뽀모도로 타이머
+                    </button>
+                    <button id="tabBtnStopwatch" onclick="switchTab('stopwatch')" class="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 text-center text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100">
+                        스톱워치
+                    </button>
+                </div>
+
+                <!-- 1. 뽀모도로 타이머 인터페이스 -->
+                <section id="pomodoroContainer" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm relative overflow-hidden">
+                    <!-- 현재 모드 배경 흐릿한 후광 효과 -->
+                    <div id="modeBgGlow" class="absolute -top-24 -left-24 w-48 h-48 rounded-full bg-brand-500/10 blur-3xl transition-colors duration-500"></div>
+                    
+                    <div class="relative z-10 flex flex-col items-center">
+                        <!-- 모드 뱃지 (집중 / 휴식) -->
+                        <div id="pomodoroModeBadge" class="px-4 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase mb-6 bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-400 transition-colors duration-300">
+                            집중 세션 (WORK)
+                        </div>
+
+                        <!-- 시각적 원형 진행도 및 거대 타이머 표시 영역 -->
+                        <div class="relative w-64 h-64 md:w-72 md:h-72 flex items-center justify-center mb-8">
+                            <!-- SVG 원형 프로그레스 -->
+                            <svg class="w-full h-full transform -rotate-90">
+                                <circle class="text-slate-100 dark:text-slate-700/50" stroke-width="8" stroke="currentColor" fill="transparent" r="120" cx="144" cy="144" />
+                                <circle id="progressRing" class="text-brand-500 dark:text-brand-500 progress-ring__circle" stroke-width="8" stroke-dasharray="753.98" stroke-dashoffset="0" stroke-linecap="round" stroke="currentColor" fill="transparent" r="120" cx="144" cy="144" />
+                            </svg>
+                            <!-- 중앙 숫자 디스플레이 -->
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="timerDisplay" class="text-5xl md:text-6xl font-bold tracking-tighter tabular-nums text-slate-800 dark:text-slate-100">25:00</span>
+                                <span id="timerSubDisplay" class="text-xs text-slate-400 dark:text-slate-500 mt-2 font-medium">목표: 25분 00초</span>
+                            </div>
+                        </div>
+
+                        <!-- 타이머 동작 제어부 -->
+                        <div class="flex items-center gap-4 w-full max-w-sm justify-center">
+                            <button id="pomoResetBtn" onclick="resetPomodoro()" class="flex-1 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/50 transition flex justify-center items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 12H19M9 11l3-3 3 3m-3-3v12"/></svg>
+                                초기화
+                            </button>
+                            <button id="pomoStartPauseBtn" onclick="togglePomodoro()" class="flex-[2] py-3 px-6 rounded-xl bg-brand-500 hover:bg-brand-600 dark:bg-brand-600 dark:hover:bg-brand-700 text-white font-bold shadow-md shadow-brand-500/20 transition flex justify-center items-center gap-2 text-lg">
+                                <svg id="pomoPlayIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg>
+                                <svg id="pomoPauseIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span id="pomoBtnText">시작</span>
+                            </button>
+                            <button id="pomoSkipBtn" onclick="skipPomodoro()" class="flex-1 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/50 transition flex justify-center items-center gap-2" title="현재 상태 건너뛰기">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+                                패스
+                            </button>
+                        </div>
+
+                        <!-- 미세 조정 컨트롤러 (커스텀 설정) -->
+                        <div class="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700/50 w-full">
+                            <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                뽀모도로 시간 미세 조정
+                            </h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">집중 시간 (분)</label>
+                                    <input type="number" id="inputWorkMin" min="1" max="180" value="25" onchange="applyCustomTimes()" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">휴식 시간 (분)</label>
+                                    <input type="number" id="inputBreakMin" min="1" max="60" value="5" onchange="applyCustomTimes()" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                </div>
+                            </div>
+                            <div class="mt-4 flex items-center">
+                                <input type="checkbox" id="autoCycleCheckbox" checked onchange="toggleAutoCycle()" class="rounded border-slate-300 dark:border-slate-700 text-brand-500 focus:ring-brand-500 h-4 w-4">
+                                <label for="autoCycleCheckbox" class="ml-2 text-xs font-medium text-slate-600 dark:text-slate-400 select-none">완료 시 다음 세션(집중/휴식) 자동으로 즉시 시작</label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. 스톱워치 인터페이스 -->
+                <section id="stopwatchContainer" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm hidden">
+                    <div class="flex flex-col items-center">
+                        <div class="px-4 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase mb-6 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                            스톱워치 모드 (STOPWATCH)
+                        </div>
+
+                        <!-- 스톱워치 메인 디스플레이 -->
+                        <div class="text-center my-10">
+                            <div id="swDisplay" class="text-5xl md:text-7xl font-bold tracking-tight tabular-nums text-slate-800 dark:text-slate-100">00:00:00.<span class="text-3xl md:text-4xl text-slate-400 dark:text-slate-500">00</span></div>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-2">시간 : 분 : 초 . 밀리초</p>
+                        </div>
+
+                        <!-- 스톱워치 제어부 -->
+                        <div class="flex items-center gap-4 w-full max-w-md justify-center mb-8">
+                            <button id="swResetBtn" onclick="resetStopwatch()" class="flex-1 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/50 transition flex justify-center items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 12H19M9 11l3-3 3 3m-3-3v12"/></svg>
+                                초기화
+                            </button>
+                            
+                            <button id="swStartPauseBtn" onclick="toggleStopwatch()" class="flex-[2] py-3 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-500/20 transition flex justify-center items-center gap-2 text-lg">
+                                <svg id="swPlayIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg>
+                                <svg id="swPauseIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span id="swBtnText">기록 시작</span>
+                            </button>
+
+                            <button id="swLapBtn" onclick="recordLap()" class="flex-1 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/50 transition flex justify-center items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                랩타임
+                            </button>
+                        </div>
+
+                        <!-- 랩 기록 히스토리 목록 -->
+                        <div id="lapHistoryContainer" class="w-full border-t border-slate-100 dark:border-slate-700/50 pt-6 hidden">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300">구간 기록 (랩타임)</h3>
+                                <button onclick="clearLaps()" class="text-xs text-rose-500 hover:underline">기록 비우기</button>
+                            </div>
+                            <div class="max-h-64 overflow-y-auto rounded-lg border border-slate-100 dark:border-slate-800">
+                                <table class="min-w-full divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+                                    <thead class="bg-slate-50 dark:bg-slate-900/50">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">순서</th>
+                                            <th class="px-4 py-2 text-right text-xs font-semibold text-slate-500">구간 시간</th>
+                                            <th class="px-4 py-2 text-right text-xs font-semibold text-slate-500">누적 시간</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="lapTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                                        <!-- 랩 내용 동적 삽입 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- 요약 리포트 패널 -->
+                <section class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                    <h3 class="text-base font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        오늘의 집중 리포트
+                    </h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl text-center">
+                            <span class="block text-2xl font-bold text-brand-600 dark:text-brand-400" id="statCompletedSessions">0</span>
+                            <span class="text-xs text-slate-500 dark:text-slate-400">집중 세션 완료</span>
+                        </div>
+                        <div class="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl text-center">
+                            <span class="block text-2xl font-bold text-emerald-600 dark:text-emerald-400" id="statTotalFocusTime">0분</span>
+                            <span class="text-xs text-slate-500 dark:text-slate-400">총 누적 집중 시간</span>
+                        </div>
+                        <div class="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl text-center">
+                            <span class="block text-2xl font-bold text-indigo-600 dark:text-indigo-400" id="statTaskProgress">0%</span>
+                            <span class="text-xs text-slate-500 dark:text-slate-400">할 일 완료율</span>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- 오른쪽 섹션: 태스크 매니저 및 타임라인 - 5컬럼 -->
+            <aside class="lg:col-span-5 space-y-6">
+                <!-- 현재 진행 중인 태스크 보드 -->
+                <div class="bg-gradient-to-br from-brand-600 to-indigo-700 rounded-2xl p-6 text-white shadow-md relative overflow-hidden">
+                    <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                    <span class="text-xs font-bold uppercase tracking-widest bg-white/20 px-2.5 py-1 rounded-full">ACTIVE TASK</span>
+                    <h3 id="activeTaskTitle" class="text-xl font-bold mt-3 mb-1">지정된 활성 작업이 없습니다.</h3>
+                    <p class="text-xs text-brand-100">아래 리스트에서 작업 대상을 설정하면 세션 시간이 함께 기록됩니다.</p>
+                </div>
+
+                <!-- 할 일 관리 인터랙티브 체크리스트 -->
+                <section class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                            집중 태스크 목록
+                        </h3>
+                        <span id="taskCount" class="text-xs font-semibold bg-slate-100 dark:bg-slate-700 px-2.5 py-0.5 rounded-full text-slate-500 dark:text-slate-300">0개 대기중</span>
+                    </div>
+
+                    <!-- 태스크 추가 폼 -->
+                    <form onsubmit="addTask(event)" class="flex gap-2 mb-4">
+                        <input type="text" id="newTaskInput" placeholder="새로운 집중 태스크 입력..." required class="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                        <button type="submit" class="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-semibold transition">
+                            추가
+                        </button>
+                    </form>
+
+                    <!-- 할 일 동적 리스트 영역 -->
+                    <div id="taskList" class="space-y-2 max-h-80 overflow-y-auto pr-1">
+                        <!-- 항목이 없을 때 기본 메시지 -->
+                        <div id="emptyTaskState" class="text-center py-8 text-slate-400 dark:text-slate-500 text-sm">
+                            등록된 태스크가 없습니다.<br>집중할 목표를 먼저 적어보세요.
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 타임라인 히스토리 로그 -->
+                <section class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                    <h3 class="text-base font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        세션 히스토리
+                    </h3>
+                    <div class="relative pl-4 border-l-2 border-slate-200 dark:border-slate-700 space-y-4 max-h-60 overflow-y-auto" id="sessionTimeline">
+                        <!-- 히스토리가 비었을 때 메시지 -->
+                        <div id="emptyTimelineState" class="text-xs text-slate-400 dark:text-slate-500">
+                            완료 기록이 여기에 실시간 타임라인으로 표시됩니다.
+                        </div>
+                    </div>
+                </section>
+            </aside>
+
+        </div>
+    </div>
+
+    <!-- 커스텀 시스템 알림 레이어 -->
+    <div id="toastNotification" class="fixed bottom-6 right-6 bg-slate-900 dark:bg-white text-white dark:text-slate-950 px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50 max-w-sm">
+        <div class="bg-brand-500/10 p-1.5 rounded-lg text-brand-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        </div>
+        <div>
+            <p id="toastMessage" class="text-sm font-semibold">타이머 완료!</p>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           1. 애플리케이션 상태 변수 정의
+           ========================================================================== */
+        let activeTab = 'pomodoro'; // 'pomodoro' 또는 'stopwatch'
+        
+        // 뽀모도로 타이머 상태
+        let pomoMinutes = 25;
+        let pomoSeconds = 5;
+        let pomoTimeLeft = pomoMinutes * 60;
+        let pomoTotalDuration = pomoMinutes * 60;
+        let pomoMode = 'work'; // 'work' = 집중, 'break' = 휴식
+        let pomoTimerId = null;
+        let pomoIsRunning = false;
+        let autoCycle = true;
+        let completedPomosCount = 0;
+        let totalFocusMinutes = 0;
+
+        // 스톱워치 상태
+        let swStartTime = 0;
+        let swElapsedTime = 0;
+        let swTimerId = null;
+        let swIsRunning = false;
+        let laps = [];
+
+        // 태스크 목록 상태
+        let tasks = [];
+        let activeTaskId = null;
+
+        // 타임라인 내역 데이터
+        let timelineLogs = [];
+
+        /* ==========================================================================
+           2. 초기화 및 이벤트 바인딩
+           ========================================================================== */
+        window.addEventListener('DOMContentLoaded', () => {
+            initApp();
+            // 기본 시스템 테마 감지하여 테마 적용
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark');
+                updateThemeIcons(true);
+            } else {
+                updateThemeIcons(false);
+            }
+        });
+
+        function initApp() {
+            updatePomoTimerDisplay();
+            renderTasks();
+            updateStats();
+        }
+
+        /* ==========================================================================
+           3. 탭 및 전역 제어부
+           ========================================================================== */
+        function switchTab(tab) {
+            activeTab = tab;
+            const btnPomo = document.getElementById('tabBtnPomodoro');
+            const btnSw = document.getElementById('tabBtnStopwatch');
+            const containerPomo = document.getElementById('pomodoroContainer');
+            const containerSw = document.getElementById('stopwatchContainer');
+
+            if (tab === 'pomodoro') {
+                btnPomo.className = "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 text-center bg-brand-500 text-white shadow-sm";
+                btnSw.className = "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 text-center text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100";
+                containerPomo.classList.remove('hidden');
+                containerSw.classList.add('hidden');
+            } else {
+                btnSw.className = "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 text-center bg-emerald-500 text-white shadow-sm";
+                btnPomo.className = "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 text-center text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100";
+                containerPomo.classList.add('hidden');
+                containerSw.classList.remove('hidden');
+            }
+        }
+
+        // 테마 토글 처리
+        function toggleTheme() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                updateThemeIcons(false);
+            } else {
+                html.classList.add('dark');
+                updateThemeIcons(true);
+            }
+        }
+
+        function updateThemeIcons(isDark) {
+            const sunIcon = document.getElementById('sunIcon');
+            const moonIcon = document.getElementById('moonIcon');
+            if (isDark) {
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            } else {
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            }
+        }
+
+        // 브라우저 내부 Web Audio API를 활용한 기기 자체 알림음 생성 (CORS나 리소스 로드 위험 방지)
+        function playAlertSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (!ctx) return;
+                
+                const now = ctx.currentTime;
+                
+                // 첫 번째 고음 생성 (클린 실로폰 느낌)
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(987.77, now); // B5 음계
+                osc1.frequency.exponentialRampToValueAtTime(1318.51, now + 0.12); // E6 음계
+                
+                gain1.gain.setValueAtTime(0.25, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.5);
+                
+                // 두 번째 화음 생성
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(1318.51, now + 0.15); // E6 음계
+                osc2.frequency.exponentialRampToValueAtTime(1975.53, now + 0.3); // B6 음계
+                
+                gain2.gain.setValueAtTime(0, now);
+                gain2.gain.setValueAtTime(0.25, now + 0.15);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+                
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start(now + 0.15);
+                osc2.stop(now + 0.8);
+            } catch (e) {
+                console.error("Audio Context 생성 실패: 사용자 상호작용 필요", e);
+            }
+        }
+
+        // 하단 커스텀 시스템 토스트 알림 노출
+        function showToast(message) {
+            const toast = document.getElementById('toastNotification');
+            const text = document.getElementById('toastMessage');
+            text.textContent = message;
+            
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 4000);
+        }
+
+        /* ==========================================================================
+           4. 뽀모도로 핵심 로직
+           ========================================================================== */
+        function updatePomoTimerDisplay() {
+            const min = Math.floor(pomoTimeLeft / 60);
+            const sec = pomoTimeLeft % 60;
+            const displayStr = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+            
+            // 중앙 큰 텍스트 디스플레이 업데이트
+            document.getElementById('timerDisplay').textContent = displayStr;
+            
+            // 웹페이지 브라우저 탭 타이틀 업데이트
+            const prefix = pomoMode === 'work' ? '집중' : '휴식';
+            document.title = `[${prefix} ${displayStr}] 생산성 대시보드`;
+
+            // 가이드 텍스트 업데이트
+            const targetMin = pomoMode === 'work' ? pomoMinutes : pomoSeconds;
+            document.getElementById('timerSubDisplay').textContent = `목표: ${targetMin}분 00초`;
+
+            // SVG 원형 진행도 업데이트
+            const circle = document.getElementById('progressRing');
+            const radius = circle.r.baseVal.value;
+            const circumference = 2 * Math.PI * radius;
+            
+            const progress = pomoTimeLeft / pomoTotalDuration;
+            const offset = circumference - (progress * circumference);
+            circle.style.strokeDashoffset = offset;
+        }
+
+        function togglePomodoro() {
+            if (pomoIsRunning) {
+                pausePomodoro();
+            } else {
+                startPomodoro();
+            }
+        }
+
+        function startPomodoro() {
+            pomoIsRunning = true;
+            document.getElementById('pomoPlayIcon').classList.add('hidden');
+            document.getElementById('pomoPauseIcon').classList.remove('hidden');
+            document.getElementById('pomoBtnText').textContent = '일시 정지';
+
+            pomoTimerId = setInterval(() => {
+                if (pomoTimeLeft > 0) {
+                    pomoTimeLeft--;
+                    updatePomoTimerDisplay();
+                } else {
+                    handlePomoCycleComplete();
+                }
+            }, 1000);
+        }
+
+        function pausePomodoro() {
+            pomoIsRunning = false;
+            document.getElementById('pomoPlayIcon').classList.remove('hidden');
+            document.getElementById('pomoPauseIcon').classList.add('hidden');
+            document.getElementById('pomoBtnText').textContent = '재개';
+            
+            if (pomoTimerId) {
+                clearInterval(pomoTimerId);
+                pomoTimerId = null;
+            }
+        }
+
+        function resetPomodoro() {
+            pausePomodoro();
+            document.getElementById('pomoBtnText').textContent = '시작';
+            pomoTimeLeft = pomoTotalDuration;
+            updatePomoTimerDisplay();
+        }
+
+        function skipPomodoro() {
+            pausePomodoro();
+            // 강제 토글
+            pomoMode = pomoMode === 'work' ? 'break' : 'work';
+            setModeAesthetics();
+            pomoTimeLeft = pomoTotalDuration;
+            updatePomoTimerDisplay();
+            showToast(`다음 세션(${pomoMode === 'work' ? '집중' : '휴식'})으로 건너뛰었습니다.`);
+        }
+
+        function applyCustomTimes() {
+            const workInput = parseInt(document.getElementById('inputWorkMin').value) || 25;
+            const breakInput = parseInt(document.getElementById('inputBreakMin').value) || 5;
+
+            pomoMinutes = Math.max(1, Math.min(180, workInput));
+            pomoSeconds = Math.max(1, Math.min(60, breakInput));
+
+            pomoTotalDuration = (pomoMode === 'work' ? pomoMinutes : pomoSeconds) * 60;
+            
+            if (!pomoIsRunning) {
+                pomoTimeLeft = pomoTotalDuration;
+                updatePomoTimerDisplay();
+            }
+        }
+
+        function toggleAutoCycle() {
+            autoCycle = document.getElementById('autoCycleCheckbox').checked;
+        }
+
+        function setModeAesthetics() {
+            const badge = document.getElementById('pomodoroModeBadge');
+            const circle = document.getElementById('progressRing');
+            const glow = document.getElementById('modeBgGlow');
+
+            if (pomoMode === 'work') {
+                pomoTotalDuration = pomoMinutes * 60;
+                
+                badge.textContent = '집중 세션 (WORK)';
+                badge.className = "px-4 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase mb-6 bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-400 transition-colors duration-300";
+                
+                circle.classList.remove('text-emerald-500');
+                circle.classList.add('text-brand-500');
+
+                glow.className = "absolute -top-24 -left-24 w-48 h-48 rounded-full bg-brand-500/10 blur-3xl transition-colors duration-500";
+            } else {
+                pomoTotalDuration = pomoSeconds * 60;
+                
+                badge.textContent = '리프레시 휴식 (BREAK)';
+                badge.className = "px-4 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase mb-6 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 transition-colors duration-300";
+                
+                circle.classList.remove('text-brand-500');
+                circle.classList.add('text-emerald-500');
+
+                glow.className = "absolute -top-24 -left-24 w-48 h-48 rounded-full bg-emerald-500/10 blur-3xl transition-colors duration-500";
+            }
+        }
+
+        function handlePomoCycleComplete() {
+            pausePomodoro();
+            playAlertSound();
+
+            const finishedMode = pomoMode;
+            const logTimeStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            if (finishedMode === 'work') {
+                completedPomosCount++;
+                totalFocusMinutes += pomoMinutes;
+                
+                // 활성 태스크 집중 기록 업데이트
+                incrementActiveTaskPomo();
+                
+                showToast(`축하합니다! ${pomoMinutes}분 집중 세션을 성실히 마쳤습니다.`);
+                addTimelineLog('집중 완료', `${pomoMinutes}분 동안 열심히 집중하였습니다.`, 'brand', logTimeStr);
+                
+                pomoMode = 'break';
+            } else {
+                showToast(`휴식 세션이 끝났습니다. 다음 집중을 시작할 준비를 하십시오.`);
+                addTimelineLog('휴식 종료', `정비 및 휴식 단계를 마쳤습니다. 다시 도약하십시오.`, 'emerald', logTimeStr);
+                
+                pomoMode = 'work';
+            }
+
+            setModeAesthetics();
+            pomoTimeLeft = pomoTotalDuration;
+            updatePomoTimerDisplay();
+            updateStats();
+
+            // 즉시 자동 다음 사이클 시작 여부
+            if (autoCycle) {
+                setTimeout(() => {
+                    startPomodoro();
+                }, 1000);
+            }
+        }
+
+        /* ==========================================================================
+           5. 스톱워치 로직
+           ========================================================================== */
+        function updateStopwatchDisplay() {
+            const hrs = Math.floor(swElapsedTime / 3600000);
+            const mins = Math.floor((swElapsedTime % 3600000) / 60000);
+            const secs = Math.floor((swElapsedTime % 60000) / 1000);
+            const ms = Math.floor((swElapsedTime % 1000) / 10);
+
+            const timeStr = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            const msStr = String(ms).padStart(2, '0');
+
+            document.getElementById('swDisplay').innerHTML = `${timeStr}.<span class="text-3xl md:text-4xl text-slate-400 dark:text-slate-500">${msStr}</span>`;
+            
+            if (activeTab === 'stopwatch') {
+                document.title = `[S/W ${timeStr}] 생산성 대시보드`;
+            }
+        }
+
+        function toggleStopwatch() {
+            if (swIsRunning) {
+                pauseStopwatch();
+            } else {
+                startStopwatch();
+            }
+        }
+
+        function startStopwatch() {
+            swIsRunning = true;
+            document.getElementById('swPlayIcon').classList.add('hidden');
+            document.getElementById('swPauseIcon').classList.remove('hidden');
+            document.getElementById('swBtnText').textContent = '기록 일시정지';
+
+            swStartTime = Date.now() - swElapsedTime;
+            swTimerId = setInterval(() => {
+                swElapsedTime = Date.now() - swStartTime;
+                updateStopwatchDisplay();
+            }, 30);
+        }
+
+        function pauseStopwatch() {
+            swIsRunning = false;
+            document.getElementById('swPlayIcon').classList.remove('hidden');
+            document.getElementById('swPauseIcon').classList.add('hidden');
+            document.getElementById('swBtnText').textContent = '기록 시작';
+
+            if (swTimerId) {
+                clearInterval(swTimerId);
+                swTimerId = null;
+            }
+        }
+
+        function resetStopwatch() {
+            pauseStopwatch();
+            swElapsedTime = 0;
+            laps = [];
+            updateStopwatchDisplay();
+            renderLaps();
+            document.getElementById('lapHistoryContainer').classList.add('hidden');
+        }
+
+        function recordLap() {
+            if (swElapsedTime === 0) return;
+            
+            const prevLapTotal = laps.length > 0 ? laps[laps.length - 1].cumulative : 0;
+            const lapDuration = swElapsedTime - prevLapTotal;
+            
+            laps.push({
+                lapNum: laps.length + 1,
+                duration: lapDuration,
+                cumulative: swElapsedTime
+            });
+
+            document.getElementById('lapHistoryContainer').classList.remove('hidden');
+            renderLaps();
+        }
+
+        function clearLaps() {
+            laps = [];
+            renderLaps();
+            document.getElementById('lapHistoryContainer').classList.add('hidden');
+        }
+
+        function formatMs(msTotal) {
+            const hrs = Math.floor(msTotal / 3600000);
+            const mins = Math.floor((msTotal % 3600000) / 60000);
+            const secs = Math.floor((msTotal % 60000) / 1000);
+            const ms = Math.floor((msTotal % 1000) / 10);
+            return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(2, '0')}`;
+        }
+
+        function renderLaps() {
+            const tbody = document.getElementById('lapTableBody');
+            tbody.innerHTML = '';
+
+            // 역순으로 렌더링 (최신 랩이 상단에 배치되도록 처리)
+            [...laps].reverse().forEach((lap) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-4 py-2.5 font-bold text-slate-500">Lap ${lap.lapNum}</td>
+                    <td class="px-4 py-2.5 text-right font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">+${formatMs(lap.duration)}</td>
+                    <td class="px-4 py-2.5 text-right font-medium tabular-nums text-slate-700 dark:text-slate-300">${formatMs(lap.cumulative)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        /* ==========================================================================
+           6. 태스크 관리 체크리스트 및 통계
+           ========================================================================== */
+        function renderTasks() {
+            const list = document.getElementById('taskList');
+            const emptyState = document.getElementById('emptyTaskState');
+            const countBadge = document.getElementById('taskCount');
+
+            // 기존 노드 정리
+            list.innerHTML = '';
+
+            if (tasks.length === 0) {
+                emptyState.classList.remove('hidden');
+                countBadge.textContent = "0개 대기중";
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            const activeTasks = tasks.filter(t => !t.completed).length;
+            countBadge.textContent = `${activeTasks}개 대기중`;
+
+            tasks.forEach(task => {
+                const row = document.createElement('div');
+                // 활성화 상태 하이라이트 클래스 분기 처리
+                const isActive = activeTaskId === task.id;
+                const activeBorderClass = isActive 
+                    ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-950/20' 
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20';
+
+                row.className = `flex items-center justify-between p-3.5 rounded-xl border ${activeBorderClass} transition-all duration-200`;
+
+                row.innerHTML = `
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTaskComplete(${task.id})" class="rounded border-slate-300 dark:border-slate-700 text-brand-500 focus:ring-brand-500 h-4.5 w-4.5 cursor-pointer">
+                        <div class="truncate flex-1">
+                            <p class="text-sm font-semibold truncate ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}">${task.text}</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[10px] bg-slate-200/60 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded">
+                                    🍅 ${task.completedPomos} 완료
+                                </span>
+                                ${isActive ? '<span class="text-[10px] text-brand-600 dark:text-brand-400 font-bold">진행 중</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 ml-3">
+                        ${!task.completed ? `
+                            <button onclick="setActiveTask(${task.id})" class="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition" title="활성 태스크로 지정">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg>
+                            </button>
+                        ` : ''}
+                        <button onclick="deleteTask(${task.id})" class="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 transition" title="태스크 제거">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function addTask(event) {
+            event.preventDefault();
+            const input = document.getElementById('newTaskInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const newTask = {
+                id: Date.now(),
+                text: text,
+                completed: false,
+                completedPomos: 0
+            };
+
+            tasks.push(newTask);
+            
+            // 만약 활성 태스크가 지정되어 있지 않았다면 이 신규 태스크를 바로 타겟으로 삼는다.
+            if (!activeTaskId) {
+                activeTaskId = newTask.id;
+                updateActiveTaskBoard(newTask.text);
+            }
+
+            input.value = '';
+            renderTasks();
+            updateStats();
+        }
+
+        function toggleTaskComplete(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.completed = !task.completed;
+                
+                // 만약 현재 작동되던 집중 대상이 완료 처리되었다면, 활성 지정을 초기화한다.
+                if (task.completed && activeTaskId === id) {
+                    activeTaskId = null;
+                    const nextActive = tasks.find(t => !t.completed);
+                    if (nextActive) {
+                        activeTaskId = nextActive.id;
+                        updateActiveTaskBoard(nextActive.text);
+                    } else {
+                        updateActiveTaskBoard(null);
+                    }
+                } else if (!task.completed && !activeTaskId) {
+                    activeTaskId = task.id;
+                    updateActiveTaskBoard(task.text);
+                }
+            }
+            renderTasks();
+            updateStats();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            if (activeTaskId === id) {
+                activeTaskId = null;
+                const nextActive = tasks.find(t => !t.completed);
+                if (nextActive) {
+                    activeTaskId = nextActive.id;
+                    updateActiveTaskBoard(nextActive.text);
+                } else {
+                    updateActiveTaskBoard(null);
+                }
+            }
+            renderTasks();
+            updateStats();
+        }
+
+        function setActiveTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task && !task.completed) {
+                activeTaskId = id;
+                updateActiveTaskBoard(task.text);
+                renderTasks();
+                showToast(`[${task.text}] 활성 태스크로 지정 완료.`);
+            }
+        }
+
+        function updateActiveTaskBoard(text) {
+            const activeTitle = document.getElementById('activeTaskTitle');
+            if (text) {
+                activeTitle.textContent = text;
+            } else {
+                activeTitle.textContent = '지정된 활성 작업이 없습니다.';
+            }
+        }
+
+        function incrementActiveTaskPomo() {
+            if (!activeTaskId) return;
+            const task = tasks.find(t => t.id === activeTaskId);
+            if (task) {
+                task.completedPomos++;
+                renderTasks();
+            }
+        }
+
+        function updateStats() {
+            // 집중 세션 완료 횟수
+            document.getElementById('statCompletedSessions').textContent = completedPomosCount;
+            // 누적 집중 분량
+            document.getElementById('statTotalFocusTime').textContent = `${totalFocusMinutes}분`;
+            
+            // 완료 목표율 계산
+            const totalTasks = tasks.length;
+            const completedTasks = tasks.filter(t => t.completed).length;
+            const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+            document.getElementById('statTaskProgress').textContent = `${progressPct}%`;
+        }
+
+        /* ==========================================================================
+           7. 실시간 타임라인 로그 제어
+           ========================================================================== */
+        function addTimelineLog(title, description, color, timeStr) {
+            const timeline = document.getElementById('sessionTimeline');
+            const emptyState = document.getElementById('emptyTimelineState');
+
+            if (emptyState) {
+                emptyState.classList.add('hidden');
+            }
+
+            const logElement = document.createElement('div');
+            logElement.className = "relative pl-6 pb-2 transition-all duration-300";
+
+            let bulletColor = 'bg-brand-500';
+            if (color === 'emerald') bulletColor = 'bg-emerald-500';
+
+            logElement.innerHTML = `
+                <div class="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ${bulletColor} border-2 border-white dark:border-slate-800"></div>
+                <div class="flex justify-between items-start">
+                    <h4 class="text-xs font-bold text-slate-800 dark:text-slate-100">${title}</h4>
+                    <span class="text-[10px] text-slate-400 dark:text-slate-500 font-mono">${timeStr}</span>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">${description}</p>
+            `;
+
+            // 기존 히스토리 노드의 가장 앞에 배치하여 역순 정렬 유지
+            timeline.insertBefore(logElement, timeline.firstChild);
+        }
+
+    </script>
+</body>
+</html>
